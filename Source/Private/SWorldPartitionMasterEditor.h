@@ -27,10 +27,10 @@ public:
 	TSharedRef<ITableRow> OnGenerateCellRow(TSharedPtr<FWorldPartitionCellStats> Cell, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnCellSelectionChanged(TSharedPtr<FWorldPartitionCellStats> Cell, ESelectInfo::Type Info);
 
-	TSharedRef<ITableRow> OnGenerateActorRow(TSharedPtr<FWorldPartitionActorStats> Actor, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnActorSelectionChanged(TSharedPtr<FWorldPartitionActorStats> Actor, ESelectInfo::Type Info);
 protected:
 	TSharedPtr<FTabManager> TabManager;
+
+	FWorldPartitionStats mStatsCache;
 
 	TSharedPtr<FWorldPartitionGridStats> mCurrentGrid;
 	TArray<TSharedPtr<FWorldPartitionGridStats>> mGrids;
@@ -43,9 +43,7 @@ protected:
 	TArray<TSharedPtr<FWorldPartitionCellStats>> mCells;
 	TSharedPtr<SListView<TSharedPtr<FWorldPartitionCellStats>>> mCellListView;
 
-	TSharedPtr<FWorldPartitionActorStats> mCurrentActor;
-	TArray<TSharedPtr<FWorldPartitionActorStats>> mActors;
-	TSharedPtr<SListView<TSharedPtr<FWorldPartitionActorStats>>> mActorsListView;
+	TSharedPtr<IDetailsView> mDetailsView;
 
-	TSharedPtr<FWorldPartitionStats> mStats;
+	TStrongObjectPtr<UWorldPartitionStatsCellPreviewer> mCellPreviewer;
 };

@@ -1,10 +1,22 @@
 ﻿#include "SWorldPartitionMasterEditor.h"
-#include "../../Slate/Public/Widgets/Layout/SHeader.h"
+#include "Widgets/Layout/SHeader.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionMaster"
 
 void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 {
+	mCellPreviewer.Reset(NewObject<UWorldPartitionStatsCellPreviewer>());
+
+	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs;
+	//DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
+	DetailsViewArgs.bShowObjectLabel = false;
+	DetailsViewArgs.bAllowSearch = true;
+	DetailsViewArgs.bAllowFavoriteSystem = true;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
+	DetailsViewArgs.ViewIdentifier = FName("BlueprintDefaults");
+	mDetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	mDetailsView->SetObject(mCellPreviewer.Get());
 	ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -60,17 +72,17 @@ void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 				+ SVerticalBox::Slot()
 				.FillHeight(5)
 				[
+					
 					SNew(SSplitter)
 						.Orientation(Orient_Vertical)
 						+ SSplitter::Slot()
 						[
+							SNew(SSpacer)
+						]
+						+ SSplitter::Slot()
+						[
 							SNew(SSplitter)
 								+ SSplitter::Slot()
-								.Value(0.75)
-								[
-									SNew(SSpacer)
-								]
-							+ SSplitter::Slot()
 								.Value(0.25)
 								[
 									SNew(SVerticalBox)
@@ -84,7 +96,7 @@ void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 															return FText::FromString(FString::Printf(TEXT(" Cells [%d] "), mCells.Num()));
 														})
 												]
-											
+
 										]
 										+ SVerticalBox::Slot()
 										[
@@ -94,40 +106,11 @@ void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 												.OnGenerateRow(this, &SWorldPartitionMasterEditor::OnGenerateCellRow)
 												.OnSelectionChanged(this, &SWorldPartitionMasterEditor::OnCellSelectionChanged)
 										]
-
-								]
-						]
-						+ SSplitter::Slot()
-						[
-							SNew(SSplitter)
-								+ SSplitter::Slot()
-								.Value(0.25)
-								[
-									SNew(SVerticalBox)
-										+ SVerticalBox::Slot()
-										.AutoHeight()
-										[
-											SNew(SHeader)
-												[
-													SNew(STextBlock)
-														.Text_Lambda([this]() {
-															return FText::FromString(FString::Printf(TEXT(" Actors [%d] "), mActors.Num()));
-														})
-												]
-										]
-										+ SVerticalBox::Slot()
-										[
-											SAssignNew(mActorsListView, SListView<TSharedPtr<FWorldPartitionActorStats>>)
-												.ListItemsSource(&mActors)
-												.ScrollbarVisibility(EVisibility::Visible)
-												.OnGenerateRow(this, &SWorldPartitionMasterEditor::OnGenerateActorRow)
-												.OnSelectionChanged(this, &SWorldPartitionMasterEditor::OnActorSelectionChanged)
-										]
 								]
 								+ SSplitter::Slot()
 								.Value(0.75)
 								[
-									SNew(SSpacer)
+									mDetailsView.ToSharedRef()
 								]
 						]
 				]
@@ -139,9 +122,12 @@ FReply SWorldPartitionMasterEditor::OnClickedFlushStreaming()
 {
 	UWorld* World = GEditor && GEditor->PlayWorld != nullptr ? GEditor->PlayWorld.Get() : GEditor->GetEditorWorldContext().World();
 
-	mStats = FWorldPartitionStats::FlushStreaming(World);
+	mStatsCache = FWorldPartitionStats::FlushStreaming(World);
 
-	mGrids = mStats->Grids;
+	mGrids.SetNum(mStatsCache.Grids.Num());
+	for (int i = 0; i < mGrids.Num(); i++) {
+		mGrids[i] = MakeShared<FWorldPartitionGridStats>(mStatsCache.Grids[i]);
+	}
 	for (const auto& Grid : mGrids) {
 		if (mCurrentGrid && mCurrentGrid->GridName == Grid->GridName) {
 			mCurrentGrid = Grid;
@@ -183,8 +169,8 @@ void SWorldPartitionMasterEditor::OnRefreshCells()
 	mCells.Reset();
 	if (mCurrentGrid) {
 		for (auto Cell : mCurrentGrid->Cells) {
-			if (Cell->HierarchicalLevel == mCurrentHierarchicalLevel) {
-				mCells.Add(Cell);
+			if (Cell.HierarchicalLevel == mCurrentHierarchicalLevel) {
+				mCells.Add(MakeShared<FWorldPartitionCellStats>(Cell));
 			}
 		}
 		if (mCellListView) {
@@ -206,25 +192,8 @@ void SWorldPartitionMasterEditor::OnCellSelectionChanged(TSharedPtr<FWorldPartit
 {
 	mCurrentCell = Cell;
 	if (mCurrentCell) {
-		mActors = mCurrentCell->Actors;
-		if (mActorsListView) {
-			mActorsListView->RebuildList();
-		}
+		mCellPreviewer->CellStats = *Cell;
 	}
-}
-
-TSharedRef<ITableRow> SWorldPartitionMasterEditor::OnGenerateActorRow(TSharedPtr<FWorldPartitionActorStats> Actor, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(STableRow<TSharedRef<FWorldPartitionCellStats>>, OwnerTable)
-		[
-			SNew(STextBlock)
-				.Text(FText::FromString(Actor->Label))
-		];
-}
-
-void SWorldPartitionMasterEditor::OnActorSelectionChanged(TSharedPtr<FWorldPartitionActorStats> Actor, ESelectInfo::Type Info)
-{
-	mCurrentActor = Actor;
 }
 
 #undef LOCTEXT_NAMESPACE
