@@ -17,6 +17,7 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "InstancedStructDetails.h"
+#include "IStructureDataProvider.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionMaster"
 
