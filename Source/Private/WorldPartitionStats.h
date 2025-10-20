@@ -21,31 +21,34 @@ struct FWorldPartitionActorStats {
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere)
+	FString Label;
+
+	UPROPERTY()
+	FSoftObjectPath Path;
+
+	UPROPERTY(Transient, VisibleAnywhere)
+	TSoftObjectPtr<AActor> Actor;
+
+	UPROPERTY(VisibleAnywhere)
 	FTopLevelAssetPath BaseClass;
 
 	UPROPERTY(VisibleAnywhere)
 	FTopLevelAssetPath NativeClass;
 
 	UPROPERTY(VisibleAnywhere)
-	FSoftObjectPath Path;
-
-	UPROPERTY(VisibleAnywhere)
 	FName Package;
-
-	UPROPERTY(VisibleAnywhere)
-	FString Label;
 
 	UPROPERTY(VisibleAnywhere)
 	FGuid ActorGuid;
 
 	UPROPERTY(VisibleAnywhere)
-	int DrawCallCount;
+	int DrawCallCount = 0;
 
 	UPROPERTY(VisibleAnywhere)
-	int TriangleCount;
+	int TriangleCount = 0;
 
 	UPROPERTY(VisibleAnywhere)
-	int TextureCount;
+	int TextureCount = 0;
 };
 
 USTRUCT()
@@ -144,7 +147,11 @@ enum class EWorldPartitionStatsPreviewMode {
 UCLASS()
 class UWorldPartitionStatsCellPreviewer : public UObject{
     GENERATED_BODY()
+
 public:
+	UWorld* World = nullptr;
+	virtual UWorld* GetWorld() const override;
+
 	UPROPERTY(VisibleAnywhere)
 	FWorldPartitionCellStats CellStats;
 };

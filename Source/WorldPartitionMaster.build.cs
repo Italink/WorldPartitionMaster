@@ -41,7 +41,8 @@ public class WorldPartitionMaster : ModuleRules
                 "EditorSubsystem",
                 "LevelEditor",
                 "DataLayerEditor",
-                "WorkspaceMenuStructure"
+                "WorkspaceMenuStructure",
+                "StructUtilsEditor"
             }
 		);
 	}

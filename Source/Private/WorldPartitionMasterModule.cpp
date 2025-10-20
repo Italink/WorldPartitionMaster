@@ -5,6 +5,7 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "SWorldPartitionMasterEditor.h"
+#include "WorldPartitionStatsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionMaster"
 
@@ -18,6 +19,9 @@ void FWorldPartitionMasterModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorWorldPartitionCategory())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"))
 		.SetCanSidebarTab(false);
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomPropertyTypeLayout(FWorldPartitionActorStats::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPropertyTypeCustomization_WorldPartitionActorStats::MakeInstance));
 }
 
 void FWorldPartitionMasterModule::ShutdownModule()
@@ -26,7 +30,6 @@ void FWorldPartitionMasterModule::ShutdownModule()
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TEXT("WorldPartitionMaster"));
 	}
 }
-
 
 TSharedRef<SDockTab> FWorldPartitionMasterModule::SpawnWorldPartitionMaster(const FSpawnTabArgs& Args)
 {

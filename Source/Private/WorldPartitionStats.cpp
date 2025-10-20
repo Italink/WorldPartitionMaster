@@ -18,7 +18,6 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 	UE::Private::WorldPartition::FStreamingDescriptor::FStreamingDescriptorParams Params;
 	UE::Private::WorldPartition::FStreamingDescriptor::GenerateStreamingDescriptor(InWorld, StreamingDesc, Params);
 
-
 	for (UE::Private::WorldPartition::FStreamingDescriptor::FStreamingGrid& Grid : StreamingDesc.StreamingGrids) {
 		FWorldPartitionGridStats& GridStats = Stats.Grids.AddDefaulted_GetRef();
 		GridStats.GridName = Grid.Name;
@@ -46,6 +45,7 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 			}
 		}
 	}
+
 	UWorldPartition::FGenerateStreamingParams StreamingParams = UWorldPartition::FGenerateStreamingParams();
 	UWorldPartition::FGenerateStreamingContext Context;
 	WorldPartition->GenerateStreaming(StreamingParams, Context);
@@ -108,6 +108,9 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 			if (ActorStats.Label.IsEmpty()) {
 				ActorStats.Label = Actor->GetActorLabel();
 			}
+			if (ActorStats.Path.IsNull()) {
+				ActorStats.Path = ActorStats.Path;
+			}
 			TArray<UActorComponent*> ActorCompoents;
 			TSet<UTexture*> CellUsedTextures;
 			Actor->GetComponents(ActorCompoents, true);
@@ -140,4 +143,9 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 	});
 	WorldPartition->FlushStreaming();
 	return Stats;
+}
+
+UWorld* UWorldPartitionStatsCellPreviewer::GetWorld() const
+{
+	return World;
 }
