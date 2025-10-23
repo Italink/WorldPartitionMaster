@@ -118,7 +118,7 @@ struct FWorldPartitionGridStats {
 	int32 LoadingRange = 0;
 
 	UPROPERTY(VisibleAnywhere)
-	int MaxHierarchicalLevel = 0;
+	TMap<int, int> HierarchicalCellCount;
 
 	UPROPERTY(VisibleAnywhere)
 	TArray<FWorldPartitionCellStats> Cells;

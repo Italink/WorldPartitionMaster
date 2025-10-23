@@ -6,6 +6,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Input/SSlider.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Input/SNumericDropDown.h"
 #include "WorldPartitionStats.h"
 
 class SWorldPartitionMasterEditor : public SCompoundWidget
@@ -25,7 +26,7 @@ public:
 	TSharedRef<SWidget> OnGenerateGridComboWidget(TSharedPtr<FWorldPartitionGridStats> Item) const;
 	void OnCurrentGridChanged(TSharedPtr<FWorldPartitionGridStats> Selection, ESelectInfo::Type SelectInfo);
 
-	void OnHierarchicalLevelChanged(int32 NewVar);
+	void OnHierarchicalLevelChanged(TSharedPtr<int> NewVar, ESelectInfo::Type SelectInfo);
 
 	void OnRefreshCells();
 
@@ -47,7 +48,8 @@ protected:
 	TSharedPtr<SComboBox<TSharedPtr<FWorldPartitionGridStats>>> mGridComboBox;
 
 	int mCurrentHierarchicalLevel = 0;
-	TSharedPtr<SSpinBox<int32>> mHierarchicalLevelBox;
+	TArray<TSharedPtr<int>> mCurrentHierarchicalLevels;
+	TSharedPtr<SComboBox<TSharedPtr<int>>> mHierarchicalLevelBox;
 
 	TSharedPtr<FWorldPartitionCellStats> mCurrentCell;
 	TArray<TSharedPtr<FWorldPartitionCellStats>> mCells;

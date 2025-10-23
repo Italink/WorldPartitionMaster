@@ -1,4 +1,4 @@
-﻿#include "SWorldPartitionMasterEditor.h"
+#include "SWorldPartitionMasterEditor.h"
 #include "Widgets/Layout/SHeader.h"
 #include "LevelEditor.h"
 #include "WorldPartitionMasterEditorSettings.h"
@@ -29,7 +29,6 @@ void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 	FDetailsViewArgs DetailsViewArgs;
 	//DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 	DetailsViewArgs.bShowObjectLabel = false;
-	DetailsViewArgs.bShowActorLabel = false;
 	DetailsViewArgs.bAllowSearch = true;
 	DetailsViewArgs.bAllowFavoriteSystem = true;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
@@ -75,11 +74,18 @@ void SWorldPartitionMasterEditor::Construct(const FArguments& InArgs)
 								.Text_Lambda([this]() {return FText::FromString(TEXT("Level:")); })
 						]
 						+ SHorizontalBox::Slot()[
-							SAssignNew(mHierarchicalLevelBox, SSpinBox<int32>)
-								.Value_Lambda([this]() {return mCurrentHierarchicalLevel; })
-								.OnValueChanged(this, &SWorldPartitionMasterEditor::OnHierarchicalLevelChanged)
-								.MinValue(0)
-								.MinSliderValue(0)
+							SAssignNew(mHierarchicalLevelBox, SComboBox<TSharedPtr<int>>)
+								.OptionsSource(&mCurrentHierarchicalLevels)
+								.OnGenerateWidget_Lambda([](TSharedPtr<int> Item) {
+									return SNew(STextBlock).Text(FText::AsNumber(*Item));
+								})	
+								.OnSelectionChanged(this, &SWorldPartitionMasterEditor::OnHierarchicalLevelChanged)
+								[
+									SNew(STextBlock)
+										.Text_Lambda([this] {
+											return FText::AsNumber(mCurrentHierarchicalLevel);
+										})
+								]
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -204,17 +210,24 @@ TSharedRef<SWidget> SWorldPartitionMasterEditor::OnGenerateGridComboWidget(TShar
 void SWorldPartitionMasterEditor::OnCurrentGridChanged(TSharedPtr<FWorldPartitionGridStats> Selection, ESelectInfo::Type SelectInfo)
 {
 	mCurrentGrid = Selection;
-	if (mHierarchicalLevelBox && mCurrentGrid) {
-		mCurrentHierarchicalLevel = FMath::Clamp(mCurrentHierarchicalLevel, 0, mCurrentGrid->MaxHierarchicalLevel);
-		mHierarchicalLevelBox->SetMaxValue(mCurrentGrid->MaxHierarchicalLevel);
-		mHierarchicalLevelBox->SetMaxSliderValue(mCurrentGrid->MaxHierarchicalLevel);
+	if (mCurrentGrid) {
+		mCurrentHierarchicalLevels.Empty();
+		TArray<int> HierarchicalCellLevels;
+		mCurrentGrid->HierarchicalCellCount.GetKeys(HierarchicalCellLevels);
+		HierarchicalCellLevels.Sort();
+		for (int Level : HierarchicalCellLevels) {
+			mCurrentHierarchicalLevels.Add(MakeShared<int>(Level));
+		}
+		if (mHierarchicalLevelBox){
+			mHierarchicalLevelBox->RefreshOptions();
+		}
 	}
 	OnRefreshCells();
 }
 
-void SWorldPartitionMasterEditor::OnHierarchicalLevelChanged(int32 NewVar)
+void SWorldPartitionMasterEditor::OnHierarchicalLevelChanged(TSharedPtr<int> NewVar, ESelectInfo::Type SelectInfo)
 {
-	mCurrentHierarchicalLevel = NewVar;
+	mCurrentHierarchicalLevel = NewVar  ? *NewVar : 0;
 	OnRefreshCells();
 }
 
@@ -247,11 +260,9 @@ void SWorldPartitionMasterEditor::OnCellSelectionChanged(TSharedPtr<FWorldPartit
 	mCurrentCell = Cell;
 
 	if (mCurrentCell) {
-		mCellPreviewer->CellStats = *Cell;
 		for (auto& ActorStats : mCurrentCell->Actors) {
-			ActorStats.Actor = ActorStats.Path.ResolveObject();
+			ActorStats.Actor = Cast<AActor>(ActorStats.Path.ResolveObject());
 		}
-
 		if (!bCellChangedByActorSelection) {
 			GEditor->GetSelectedActors()->Modify();
 			GEditor->GetSelectedActors()->BeginBatchSelectOperation();
@@ -291,6 +302,7 @@ void SWorldPartitionMasterEditor::OnCellSelectionChanged(TSharedPtr<FWorldPartit
 			GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify*/false);
 			GEditor->NoteSelectionChange();
 		}
+		mCellPreviewer->CellStats = *Cell;
 	}
 	if (!HiddenActors.IsEmpty()) {
 		HiddenActors.Empty();
@@ -370,10 +382,10 @@ FReply SWorldPartitionMasterEditor::OnClickedToggleIsolate()
 		HiddenActors.Add(Actor);
 	}
 	for (auto& Actor : mCurrentCell->Actors) {
-		Actor.Actor = Actor.Path.ResolveObject();
+		Actor.Actor = Cast<AActor>(Actor.Path.ResolveObject());
 		if (!Actor.Actor) {
 			WorldPartition->PinActors({ Actor.ActorGuid });
-			Actor.Actor = Actor.Path.ResolveObject();
+			Actor.Actor = Cast<AActor>(Actor.Path.ResolveObject());
 		}
 	}
 	return FReply::Handled();
@@ -386,17 +398,17 @@ FReply SWorldPartitionMasterEditor::OnClickedToggleHLOD()
 	}
 	UWorld* World = GetWorld();
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
-	mCurrentCell->Hlod.HlodActor.Actor = mCurrentCell->Hlod.HlodActor.Path.ResolveObject();
+	mCurrentCell->Hlod.HlodActor.Actor = Cast<AActor>(mCurrentCell->Hlod.HlodActor.Path.ResolveObject());
 	if (!mCurrentCell->Hlod.HlodActor.Actor || (mCurrentCell->Hlod.HlodActor.Actor && mCurrentCell->Hlod.HlodActor.Actor->IsTemporarilyHiddenInEditor())) {
 		if (!mCurrentCell->Hlod.HlodActor.Actor) {
 			WorldPartition->PinActors({ mCurrentCell->Hlod.HlodActor.ActorGuid });
-			mCurrentCell->Hlod.HlodActor.Actor = mCurrentCell->Hlod.HlodActor.Path.ResolveObject();
+			mCurrentCell->Hlod.HlodActor.Actor = Cast<AActor>(mCurrentCell->Hlod.HlodActor.Path.ResolveObject());
 		}
 		if (mCurrentCell->Hlod.HlodActor.Actor) {
 			mCurrentCell->Hlod.HlodActor.Actor->SetIsTemporarilyHiddenInEditor(false);
 		}
 		for (auto& Actor : mCurrentCell->Actors) {
-			Actor.Actor = Actor.Path.ResolveObject();
+			Actor.Actor = Cast<AActor>(Actor.Path.ResolveObject());
 			if (Actor.Actor) {
 				Actor.Actor->SetIsTemporarilyHiddenInEditor(true);
 			}
@@ -405,10 +417,10 @@ FReply SWorldPartitionMasterEditor::OnClickedToggleHLOD()
 	else {
 		mCurrentCell->Hlod.HlodActor.Actor->SetIsTemporarilyHiddenInEditor(true);
 		for (auto& Actor : mCurrentCell->Actors) {
-			Actor.Actor = Actor.Path.ResolveObject();
+			Actor.Actor = Cast<AActor>(Actor.Path.ResolveObject());
 			if (!Actor.Actor) {
 				WorldPartition->PinActors({ Actor.ActorGuid });
-				Actor.Actor = Actor.Path.ResolveObject();
+				Actor.Actor = Cast<AActor>(Actor.Path.ResolveObject());
 			}
 			if (Actor.Actor) {
 				Actor.Actor->SetIsTemporarilyHiddenInEditor(false);

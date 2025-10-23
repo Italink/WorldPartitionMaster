@@ -1,4 +1,4 @@
-﻿#include "WorldPartitionStats.h"
+#include "WorldPartitionStats.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingDescriptor.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
@@ -31,8 +31,10 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 			CellStats.bIsSpatiallyLoaded = Cell.bIsSpatiallyLoaded;
 			CellStats.DataLayers = Cell.DataLayers;
 			for (const UE::Private::WorldPartition::FStreamingDescriptor::FStreamingActor& Actor : Cell.Actors) {
-				FWorldPartitionActorStats& ActorStats = CellStats.Actors.AddDefaulted_GetRef();
 				FWorldPartitionHandle ActorHandle(WorldPartition, Actor.ActorGuid);
+				if (ActorHandle.ContainerInstance == nullptr || ActorHandle.ActorDescInstance == nullptr)
+					continue;
+				FWorldPartitionActorStats ActorStats;
 				ActorStats.BaseClass = Actor.BaseClass;
 				ActorStats.NativeClass = Actor.NativeClass;
 				ActorStats.Path = Actor.Path;
@@ -42,6 +44,7 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 				if (ActorStats.Label.IsEmpty()) {
 					ActorStats.Label = ActorHandle->GetActorLabelString();
 				}
+				CellStats.Actors.Add(ActorStats);
 			}
 		}
 	}
@@ -61,6 +64,7 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 			ActorStats.ActorGuid = Actor->GetActorGuid();
 			ActorStats.Label = Actor->GetActorLabel();
 			ActorStats.Package = *Actor->GetPathName();
+			ActorStats.Path = Actor->GetPathName();
 		}
 	}
 
@@ -101,7 +105,8 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 		if (HlodStatsMap.Contains(Cell->GetGuid())) {
 			CellStats->Hlod = HlodStatsMap[Cell->GetGuid()];
 		}
-		GridStats->MaxHierarchicalLevel = FMath::Max(GridStats->MaxHierarchicalLevel, CellStats->HierarchicalLevel);
+
+		GridStats->HierarchicalCellCount.FindOrAdd(CellStats->HierarchicalLevel)++;
 
 		for (auto& ActorStats : CellStats->Actors) {
 			AActor* Actor = Cast<AActor>(ActorStats.Path.TryLoad());
@@ -118,6 +123,8 @@ FWorldPartitionStats FWorldPartitionStats::FlushStreaming(UWorld* InWorld)
 				CellStats->ComponentCount.FindOrAdd(ActorComp->GetClass()->GetName())++;
 				if (auto SMC = Cast<UStaticMeshComponent>(ActorComp)) {
 					UStaticMesh* Mesh = SMC->GetStaticMesh();
+					if (Mesh == nullptr)
+						continue;
 					ActorStats.DrawCallCount += Mesh->GetNumSections(0);
 					if (auto ISMC = Cast<UInstancedStaticMeshComponent>(SMC)) {
 						ActorStats.TriangleCount += Mesh->GetNumTriangles(0) * ISMC->GetInstanceCount();

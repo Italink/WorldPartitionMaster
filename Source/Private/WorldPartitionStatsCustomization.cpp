@@ -1,4 +1,4 @@
-﻿#include "WorldPartitionStatsCustomization.h"
+#include "WorldPartitionStatsCustomization.h"
 #include "Kismet/GameplayStatics.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -72,6 +72,7 @@ void FPropertyTypeCustomization_WorldPartitionActorStats::CustomizeHeader(TShare
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FSinglePropertyParams Params;
 	Params.NamePlacement = EPropertyNamePlacement::Hidden;
+
 	StructProvider = MakeShared<FStructurePropertyDataProvider>(InPropertyHandle);
 	auto Widget = EditModule.CreateSingleProperty(StructProvider, "Actor", Params);
 	void* Ptr = nullptr;
